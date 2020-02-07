@@ -39,21 +39,23 @@ class SetAdditionalOptions implements ObserverInterface
      */
     public function execute(\Magento\Framework\Event\Observer $observer)
     {
-        if ($this->_request->getFullActionName() == 'checkout_cart_add') { //checking when product is adding to cart
-            $product = $observer->getProduct();
-            $additionalOptions = [];
-            $additionalOptions[] = array(
-                'label' => __("Time Stamp"), //Custom option label
-                'value' => $this->date->timestamp(), //Custom option value
-            );
-            $version = $this->_productMetadata->getVersion();
-            if (version_compare($version,'2.2.0') >= 0){
-                $objectManager = ObjectManager::getInstance();
-                $serializer = $objectManager->create('\Magento\Framework\Serialize\Serializer\Json');
-                $product->addCustomOption('additional_options', $serializer->serialize($additionalOptions));
-            }else {
-                $product->addCustomOption('additional_options', serialize($additionalOptions));
-            }
+        $product = $observer->getProduct();
+        $additionalOptions = [];
+        $additionalOptions[] = array(
+            'label' => __("Time Stamp"), //Custom option label
+            'value' => $this->date->timestamp(), //Custom option value
+        );
+        $version = $this->_productMetadata->getVersion();
+        if (version_compare($version,'2.2.0') >= 0){
+            $objectManager = ObjectManager::getInstance();
+            $serializer = $objectManager->create('\Magento\Framework\Serialize\Serializer\Json');
+            $product->addCustomOption('additional_options', $serializer->serialize($additionalOptions));
+            $quoteItem = $observer->getData('quote_item');
+            $quoteItem->addOption($product->getCustomOption('additional_options'));
+        }else {
+            $product->addCustomOption('additional_options', serialize($additionalOptions));
+            $quoteItem = $observer->getData('quote_item');
+            $quoteItem->addOption($product->getCustomOption('additional_options'));
         }
     }
 
