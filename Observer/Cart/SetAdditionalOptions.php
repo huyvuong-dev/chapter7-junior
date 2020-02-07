@@ -1,9 +1,9 @@
 <?php
 namespace Magenest\Chapter7\Observer\Cart;
 
+use Magento\Framework\App\ObjectManager;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\App\RequestInterface;
-use Magento\Framework\Serialize\Serializer\Json;
 
 class SetAdditionalOptions implements ObserverInterface
 {
@@ -13,25 +13,25 @@ class SetAdditionalOptions implements ObserverInterface
     protected $_request;
 
     /**
-     * @var \Magento\Framework\Serialize\Serializer\Json
-     */
-    protected $serializer;
-
-    /**
      * @var \Magento\Framework\Stdlib\DateTime\DateTime
      */
     protected $date;
 
+    /**
+     * @var \Magento\Framework\App\ProductMetadataInterface
+     */
+    protected $_productMetadata;
+
     public function __construct(
         RequestInterface $request,
-        Json $serializer = null,
-        \Magento\Framework\Stdlib\DateTime\DateTime $date
+        \Magento\Framework\Stdlib\DateTime\DateTime $date,
+        \Magento\Framework\App\ProductMetadataInterface $productMetadata
     )
     {
+        $this->_productMetadata = $productMetadata;
         $this->date = $date;
         $this->_request = $request;
-        $this->serializer = $serializer ?: \Magento\Framework\App\ObjectManager::getInstance()
-            ->get(\Magento\Framework\Serialize\Serializer\Json::class);
+
     }
 
     /**
@@ -39,8 +39,6 @@ class SetAdditionalOptions implements ObserverInterface
      */
     public function execute(\Magento\Framework\Event\Observer $observer)
     {
-        // Check and set information according to your need
-        $product = $observer->getProduct();
         if ($this->_request->getFullActionName() == 'checkout_cart_add') { //checking when product is adding to cart
             $product = $observer->getProduct();
             $additionalOptions = [];
@@ -48,7 +46,14 @@ class SetAdditionalOptions implements ObserverInterface
                 'label' => __("Time Stamp"), //Custom option label
                 'value' => $this->date->timestamp(), //Custom option value
             );
-            $product->addCustomOption('additional_options', $this->serializer->serialize($additionalOptions));
+            $version = $this->_productMetadata->getVersion();
+            if (version_compare($version,'2.2.0') >= 0){
+                $objectManager = ObjectManager::getInstance();
+                $serializer = $objectManager->create('\Magento\Framework\Serialize\Serializer\Json');
+                $product->addCustomOption('additional_options', $serializer->serialize($additionalOptions));
+            }else {
+                $product->addCustomOption('additional_options', serialize($additionalOptions));
+            }
         }
     }
 
